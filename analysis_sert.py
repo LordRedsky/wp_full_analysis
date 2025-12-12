@@ -127,7 +127,7 @@ def process_certificate_analysis(
                 sertifikat_ws.cell(row=row, column=nama_col).fill = RED_FILL
                 sertifikat_ws.cell(row=row, column=nib_col).fill = RED_FILL
                 sertifikat_ws.cell(row=row, column=luas_col).fill = RED_FILL
-                _append_ket(sertifikat_ws, row, ket_col, "NIB memiliki duplikate")
+                _append_ket(sertifikat_ws, row, ket_col, "NIB memiliki duplikat")
             else:
                 # First occurrence, just add to seen set
                 seen_nibs.add(nib_value)
