@@ -46,15 +46,26 @@ if st.button("Proses Analysis Sertifikat"):
     if not cert_file:
         st.error("Upload file Sertifikat terlebih dahulu")
     else:
-        cert_bytes = process_certificate_analysis(
+        result = process_certificate_analysis(
             sertifikat_file=cert_file.getvalue(),
         )
-        st.session_state["cert_analyzed_bytes"] = cert_bytes
+        st.session_state["cert_analyzed_bytes"] = result['workbook_bytes']
         st.session_state["cert_orig_name"] = getattr(cert_file, "name", "sertifikat.xlsx")
         st.session_state["cert_name_analyzed"] = _make_name(st.session_state["cert_orig_name"], "analysed")
+        # Menyimpan informasi statistik ke session_state untuk ditampilkan
+        st.session_state["data_diproses"] = result['data_diproses']
+        st.session_state["nib_duplikat"] = result['nib_duplikat']
         st.success("Analysis Sertifikat selesai")
 
 if "cert_analyzed_bytes" in st.session_state:
+    # Tampilkan statistik hasil analisis sertifikat
+    if "data_diproses" in st.session_state and "nib_duplikat" in st.session_state:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric(label="Data Diproses", value=st.session_state["data_diproses"])
+        with col2:
+            st.metric(label="NIB Duplikat", value=st.session_state["nib_duplikat"])
+
     st.download_button(
         label="Download Sertifikat (analysed)",
         data=st.session_state["cert_analyzed_bytes"],

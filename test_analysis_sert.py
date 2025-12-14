@@ -49,12 +49,15 @@ def test_certificate_analysis():
     test_file = create_test_sertifikat()
 
     print("Running certificate analysis...")
-    result_bytes = process_certificate_analysis(test_file)
+    result = process_certificate_analysis(test_file)
 
     print("Certificate analysis completed successfully!")
 
+    print(f"Data diproses: {result['data_diproses']}")
+    print(f"NIB duplikat: {result['nib_duplikat']}")
+
     # Let's verify by loading the result and checking some values
-    result_wb = load_workbook(io.BytesIO(result_bytes), data_only=True)
+    result_wb = load_workbook(io.BytesIO(result['workbook_bytes']), data_only=True)
     result_ws = result_wb.active
 
     print("\nAnalyzing results:")

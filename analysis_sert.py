@@ -61,7 +61,7 @@ def _append_ket(ws, row: int, col: int, msg: str) -> None:
 
 def process_certificate_analysis(
     sertifikat_file: bytes,
-) -> bytes:
+) -> Dict[str, Any]:
     """
     Performs certificate analysis on the given sertifikat file.
 
@@ -72,6 +72,12 @@ def process_certificate_analysis(
     - Colors rows red if NIB is empty or duplicate
     - Only subsequent duplicates (not first occurrence) are marked red
     - Adds appropriate descriptions
+
+    Returns:
+    - A dictionary containing:
+        - 'workbook_bytes': Bytes of the processed workbook
+        - 'data_diproses': Number of records processed
+        - 'nib_duplikat': Number of duplicate NIBs found
     """
     sertifikat_df, sertifikat_wb = _read_excel_both(sertifikat_file)
     sertifikat_ws = sertifikat_wb.active
@@ -88,8 +94,16 @@ def process_certificate_analysis(
         ket_col = sertifikat_ws.max_column + 1
         sertifikat_ws.cell(row=1, column=ket_col, value="KETERANGAN")
 
+    # Find or create SUMMARY column to display statistics
+    try:
+        summ_col = _find_header_col(sertifikat_ws, "SUMMARY")
+    except KeyError:
+        summ_col = sertifikat_ws.max_column + 1
+        sertifikat_ws.cell(row=1, column=summ_col, value="SUMMARY")
+
     # Collect white-filled NIB values and their rows in order
     white_nib_data = []
+    total_processed = 0  # Count of all white-filled NIB cells processed
 
     for r in range(2, sertifikat_ws.max_row + 1):
         nib_cell = sertifikat_ws.cell(row=r, column=nib_col)
@@ -102,10 +116,11 @@ def process_certificate_analysis(
                 'nib_value': nib_value,
                 'cell_obj': nib_cell
             })
+            total_processed += 1
 
     # Track which NIB values have been seen (to identify subsequent duplicates)
     seen_nibs = set()
-    duplicate_rows = set()  # Track rows that should be marked as red due to duplication
+    duplicate_count = 0  # Count of duplicate NIBs found
 
     for data in white_nib_data:
         nib_value = data['nib_value']
@@ -123,11 +138,11 @@ def process_certificate_analysis(
             if nib_value in seen_nibs:
                 # This is a duplicate occurrence, mark it as red
                 row = data['row']
-                duplicate_rows.add(row)
                 sertifikat_ws.cell(row=row, column=nama_col).fill = RED_FILL
                 sertifikat_ws.cell(row=row, column=nib_col).fill = RED_FILL
                 sertifikat_ws.cell(row=row, column=luas_col).fill = RED_FILL
                 _append_ket(sertifikat_ws, row, ket_col, "NIB memiliki duplikat")
+                duplicate_count += 1
             else:
                 # First occurrence, just add to seen set
                 seen_nibs.add(nib_value)
@@ -140,11 +155,19 @@ def process_certificate_analysis(
         # Empty check is already handled above
         # Duplicate marking is already handled above
 
+    # Add summary of processed data and duplicates at the top of the SUMMARY column
+    summary_text = f"Data diproses: {total_processed}\nNIB duplikat: {duplicate_count}"
+    sertifikat_ws.cell(row=2, column=summ_col, value=summary_text)
+
     # Save the result
     sertifikat_out = io.BytesIO()
     sertifikat_wb.save(sertifikat_out)
 
-    return sertifikat_out.getvalue()
+    return {
+        'workbook_bytes': sertifikat_out.getvalue(),
+        'data_diproses': total_processed,
+        'nib_duplikat': duplicate_count
+    }
 
 
 if __name__ == "__main__":
@@ -161,10 +184,13 @@ if __name__ == "__main__":
         sertifikat_bytes = f.read()
 
     # Process the certificate analysis
-    result_bytes = process_certificate_analysis(sertifikat_bytes)
+    result = process_certificate_analysis(sertifikat_bytes)
 
     # Write the result to output file
     with open(output_file, 'wb') as f:
-        f.write(result_bytes)
+        f.write(result['workbook_bytes'])
 
-    print(f"Certificate analysis completed. Output saved to {output_file}")
+    print(f"Certificate analysis completed.")
+    print(f"Data diproses: {result['data_diproses']}")
+    print(f"NIB duplikat: {result['nib_duplikat']}")
+    print(f"Output saved to {output_file}")
