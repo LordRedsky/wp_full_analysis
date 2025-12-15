@@ -85,8 +85,5 @@ Kamu bisa implementasi dengan **Python + Pandas + OpenPyXL**:
 - **OpenPyXL** → untuk manipulasi warna cell di Excel.
 
 
-buatkan script nya dan kita bisa bungkus skrip ini ke Streamlit app (upload file → klik tombol → download hasil). hasil download berupa file wajib pajak yang sudah diupdate dengan data kendali dan file sertifikat yang sudah diupdate dengan keterangan. ketika kedua file ini di klik dan di download, file ini tidak hilang
-
-
-RUN
+*RUN*
 streamlit run app.py
