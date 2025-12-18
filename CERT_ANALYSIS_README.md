@@ -44,5 +44,3 @@ The Streamlit application now includes three processing stages:
 ```bash
 streamlit run app.py
 ```
-
-The application maintains all previous functionality while adding the new certificate analysis step as the first processing stage.
