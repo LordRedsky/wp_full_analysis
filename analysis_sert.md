@@ -18,3 +18,10 @@
     - data pada kolom "NIB" memiliki nilai "1234567890" (duplikate). nah data duplikate ini yang diwarnai merah. data awalnya tidak diwarnai merah karena dia adalah data pertama yang ditemui dengan nilai "1234567890".
 - Setelah selesai menganalisa semua data NIB, simpan file Sertifikat dengan nama "Sertifikat_analysed.xlsx" dan file ini nanti akan digunakan sebagai file acuan untuk melakukan analisis lebih lanjut yaitu pada exact_match.py dan deep_analysis.py.
 
+### Deep Analysis Sertificate for Ahli Waris
+- ambil data pada kolom "NAMA" yang hanya berwarna putih atau no fill
+- Periksa apakah nama pada sertifikat memiliki data ahli waris atau tidak dengan mengecek apakah terdapat lebih dari satu nama induk pada cell tersebut
+  - Buang gelar dan nama depan, ambil nama induknya. jika terdapat dua nama atau lebih, maka itu adalah ahli waris. Pada kasus kita tadi terdapat 4 nama induk, maka beri keternagn "Data Ahli Waris" dan beri warna kuning pada row tersebut (Nama, NIB dan Luas)
+- contoh : nilai kolom NAMA "HAFIDIN, A.MA.PD.I, Drs. Amin, Wa Uceng, La Deli" disini terdapat empat nama yaitu Hafidin, Amin, Uceng dan Deli.
+  Hafidin, A.MA.PD.I memiliki nama induk Hafidin, dengan membuang gelarnya yaitu A.MA.PD.I dan Drs. Amin memiliki nama induk Amin, dengan membuang gelarnya yaitu Drs.. dan seterusnya.
+  

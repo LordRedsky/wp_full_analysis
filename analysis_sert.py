@@ -1,4 +1,5 @@
 import io
+import re
 from typing import Tuple, Dict, Any
 import pandas as pd
 from openpyxl import load_workbook
@@ -49,6 +50,99 @@ def _find_header_col(ws, header_name: str) -> int:
     raise KeyError(f"Kolom '{header_name}' tidak ditemukan")
 
 
+def _parse_names(name_str: str) -> list:
+    """
+    Parse a name string to extract individual names by splitting on commas.
+    Remove titles and return only the core names.
+
+    Args:
+        name_str: String containing one or more names separated by commas
+
+    Returns:
+        List of individual names after removing titles
+    """
+    if not name_str or pd.isna(name_str):
+        return []
+
+    # Convert to string if needed
+    name_str = str(name_str).strip()
+    if not name_str:
+        return []
+
+    # Split by commas to get individual name entries
+    name_entries = [entry.strip() for entry in name_str.split(',') if entry.strip()]
+
+    parsed_names = []
+
+    for entry in name_entries:
+        # Clean the entry by removing common titles/prefixes
+        clean_entry = entry.strip()
+
+        # Handle complex titles like "A.MA.PD.I" by removing them completely if they match the pattern
+        # This pattern matches initials followed by dots and more initials (like A.MA.PD.I)
+        complex_title_pattern = r'^[A-Z]\.[A-Z]+\.*[A-Z]*\.*[A-Z]*\.*$'
+
+        # Check if the whole entry is a complex title
+        if re.match(complex_title_pattern, clean_entry):
+            # This entire entry is just a title, so skip it
+            continue
+
+        # For other entries, remove common titles/prefixes
+        # Regular expressions to identify and remove titles/prefixes
+        title_patterns = [
+            r'\bDrs?\.\s*',  # Dr., Drs.
+            r'\bIr\.\s*',    # Ir.
+            r'\bH\.\s*',     # H.
+            r'\bHj\.\s*',    # Hj.
+            r'\bUc?\.\s*',   # Uc, Uceng
+            r'\bLa\s+',      # La
+            r'\bWa\s+',      # Wa
+            r'\bS\.\w+\s*',  # S.KM, S.Sos, S.Pd, etc.
+            r'\bM\.\w+\s*',  # M.Kes, M.M, etc.
+            r'\bA\.[A-Z]\w*\.\s*',  # A.Ma.Pd.I, A.Ma, etc.
+            r'\bProf\.\s*',  # Prof.
+            r'\bDr\.\s*',    # Dr.
+            r'\bKH\.\s*',    # KH.
+            r'\bHb\.\s*',    # Hb.
+            r'\bA\.\s+',     # A. (initial)
+        ]
+
+        for pattern in title_patterns:
+            clean_entry = re.sub(pattern, '', clean_entry, flags=re.IGNORECASE)
+
+        # Extract the main name (the first significant word after cleaning)
+        clean_entry = clean_entry.strip()
+
+        # Split into words and process
+        words = clean_entry.split()
+
+        # Look for valid names in the entry (after title removal)
+        for word in words:
+            # Skip if it's just an initial (single letter followed by period)
+            if re.match(r'^[A-Z]\.$', word):
+                continue
+            # Skip if it's an empty string
+            if not word:
+                continue
+            # Check if it's a valid name part (capitalize if needed)
+            # Names can be in various formats - check if it's a reasonable name
+            clean_word = word.strip()
+            if clean_word and len(clean_word) >= 1:  # Allow single letters like "A", "B", "C"
+                # Capitalize the first letter if it's lowercase (e.g., "ilman" -> "Ilman")
+                if clean_word[0].islower():
+                    clean_word = clean_word.capitalize()
+                parsed_names.append(clean_word)
+                break  # Take the first valid name part from each entry
+
+    # Return unique names while preserving order
+    unique_names = []
+    for name in parsed_names:
+        if name not in unique_names:
+            unique_names.append(name)
+
+    return unique_names
+
+
 def _append_ket(ws, row: int, col: int, msg: str) -> None:
     existing = ws.cell(row=row, column=col).value
     if existing is None or str(existing).strip() == "":
@@ -72,12 +166,16 @@ def process_certificate_analysis(
     - Colors rows red if NIB is empty or duplicate
     - Only subsequent duplicates (not first occurrence) are marked red
     - Adds appropriate descriptions
+    - Also performs Deep Analysis Sertificate for Ahli Waris:
+      - Checks NAMA column for multiple names indicating heirs
+      - Marks rows with heirs in yellow
 
     Returns:
     - A dictionary containing:
         - 'workbook_bytes': Bytes of the processed workbook
         - 'data_diproses': Number of records processed
         - 'nib_duplikat': Number of duplicate NIBs found
+        - 'jumlah_ahli_waris': Number of records with heirs found
     """
     sertifikat_df, sertifikat_wb = _read_excel_both(sertifikat_file)
     sertifikat_ws = sertifikat_wb.active
@@ -155,8 +253,36 @@ def process_certificate_analysis(
         # Empty check is already handled above
         # Duplicate marking is already handled above
 
-    # Add summary of processed data and duplicates at the top of the SUMMARY column
-    summary_text = f"Data diproses: {total_processed}\nNIB duplikat: {duplicate_count}"
+    # DEEP ANALYSIS SERTIFICATE FOR AHLI WARIS
+    # Check for multiple names in NAMA column (indicating heirs)
+    # Process rows where NIB is white/no fill (as per main document requirement)
+    jumlah_ahli_waris = 0
+    for r in range(2, sertifikat_ws.max_row + 1):
+        nama_cell = sertifikat_ws.cell(row=r, column=nama_col)
+
+        # Only process rows where NIB is white/empty-filled (as per main document requirement)
+        nib_cell = sertifikat_ws.cell(row=r, column=nib_col)
+        if _is_unfilled(nib_cell):
+            nama_value = nama_cell.value
+
+            # Parse the name to identify individual names
+            individual_names = _parse_names(nama_value)
+
+            # If there are multiple names (more than 1), mark as heirs
+            if len(individual_names) > 1:
+                # Mark the row in yellow
+                sertifikat_ws.cell(row=r, column=nama_col).fill = YELLOW_FILL
+                sertifikat_ws.cell(row=r, column=nib_col).fill = YELLOW_FILL
+                sertifikat_ws.cell(row=r, column=luas_col).fill = YELLOW_FILL
+
+                # Add description
+                _append_ket(sertifikat_ws, r, ket_col, "Data Ahli Waris")
+
+                # Increment counter
+                jumlah_ahli_waris += 1
+
+    # Add summary of processed data, duplicates, and heirs at the top of the SUMMARY column
+    summary_text = f"Data diproses: {total_processed}\nNIB duplikat: {duplicate_count}\nJumlah Ahli Waris: {jumlah_ahli_waris}"
     sertifikat_ws.cell(row=2, column=summ_col, value=summary_text)
 
     # Save the result
@@ -166,7 +292,8 @@ def process_certificate_analysis(
     return {
         'workbook_bytes': sertifikat_out.getvalue(),
         'data_diproses': total_processed,
-        'nib_duplikat': duplicate_count
+        'nib_duplikat': duplicate_count,
+        'jumlah_ahli_waris': jumlah_ahli_waris
     }
 
 
@@ -193,4 +320,5 @@ if __name__ == "__main__":
     print(f"Certificate analysis completed.")
     print(f"Data diproses: {result['data_diproses']}")
     print(f"NIB duplikat: {result['nib_duplikat']}")
+    print(f"Jumlah Ahli Waris: {result['jumlah_ahli_waris']}")
     print(f"Output saved to {output_file}")

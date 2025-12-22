@@ -1,22 +1,29 @@
-import io
+#!/usr/bin/env python3
+"""
+Test the heirs detection feature with the example Excel file
+"""
+
 from analysis_sert import process_certificate_analysis
 
 def test_with_example_file():
-    print("Testing certificate analysis with sert example.xlsx...")
-    
+    """Test the analysis with the example file"""
     # Read the example file
-    with open("sert example.xlsx", "rb") as f:
-        sertifikat_bytes = f.read()
+    with open("sert example.xlsx", 'rb') as f:
+        file_bytes = f.read()
     
-    # Process the certificate analysis
-    result_bytes = process_certificate_analysis(sertifikat_bytes)
+    print("Processing example file with heirs detection...")
+    result = process_certificate_analysis(file_bytes)
     
-    # Save the result to a new file
-    with open("sertifikat_analysed.xlsx", "wb") as f:
-        f.write(result_bytes)
+    print("Analysis completed successfully!")
+    print(f"Data diproses: {result['data_diproses']}")
+    print(f"NIB duplikat: {result['nib_duplikat']}")
+    print(f"Jumlah Ahli Waris: {result['jumlah_ahli_waris']}")
     
-    print("Certificate analysis completed successfully!")
-    print("Output saved as 'sertifikat_analysed.xlsx'")
+    # Save the result
+    with open("Sertifikat_analysed.xlsx", 'wb') as f:
+        f.write(result['workbook_bytes'])
+    
+    print("Output saved to Sertifikat_analysed.xlsx")
 
 if __name__ == "__main__":
     test_with_example_file()
