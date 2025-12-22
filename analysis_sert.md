@@ -25,3 +25,4 @@
 - contoh : nilai kolom NAMA "HAFIDIN, A.MA.PD.I, Drs. Amin, Wa Uceng, La Deli" disini terdapat empat nama yaitu Hafidin, Amin, Uceng dan Deli.
   Hafidin, A.MA.PD.I memiliki nama induk Hafidin, dengan membuang gelarnya yaitu A.MA.PD.I dan Drs. Amin memiliki nama induk Amin, dengan membuang gelarnya yaitu Drs.. dan seterusnya.
   
+intinya pemisahan nama itu adalah tada koma (,) jika habis tanda koma setelah nama adalah gelar, maka itu masih satu orang.

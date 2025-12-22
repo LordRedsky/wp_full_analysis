@@ -166,12 +166,16 @@ def process_certificate_analysis(
     - Colors rows red if NIB is empty or duplicate
     - Only subsequent duplicates (not first occurrence) are marked red
     - Adds appropriate descriptions
+    - Also performs Deep Analysis Sertificate for Ahli Waris:
+      - Checks NAMA column for multiple names indicating heirs
+      - Marks rows with heirs in yellow
 
     Returns:
     - A dictionary containing:
         - 'workbook_bytes': Bytes of the processed workbook
         - 'data_diproses': Number of records processed
         - 'nib_duplikat': Number of duplicate NIBs found
+        - 'jumlah_ahli_waris': Number of records with heirs found
     """
     sertifikat_df, sertifikat_wb = _read_excel_both(sertifikat_file)
     sertifikat_ws = sertifikat_wb.active
@@ -249,8 +253,36 @@ def process_certificate_analysis(
         # Empty check is already handled above
         # Duplicate marking is already handled above
 
-    # Add summary of processed data and duplicates at the top of the SUMMARY column
-    summary_text = f"Data diproses: {total_processed}\nNIB duplikat: {duplicate_count}"
+    # DEEP ANALYSIS SERTIFICATE FOR AHLI WARIS
+    # Check for multiple names in NAMA column (indicating heirs)
+    # Process rows where NIB is white/no fill (as per main document requirement)
+    jumlah_ahli_waris = 0
+    for r in range(2, sertifikat_ws.max_row + 1):
+        nama_cell = sertifikat_ws.cell(row=r, column=nama_col)
+
+        # Only process rows where NIB is white/empty-filled (as per main document requirement)
+        nib_cell = sertifikat_ws.cell(row=r, column=nib_col)
+        if _is_unfilled(nib_cell):
+            nama_value = nama_cell.value
+
+            # Parse the name to identify individual names
+            individual_names = _parse_names(nama_value)
+
+            # If there are multiple names (more than 1), mark as heirs
+            if len(individual_names) > 1:
+                # Mark the row in yellow
+                sertifikat_ws.cell(row=r, column=nama_col).fill = YELLOW_FILL
+                sertifikat_ws.cell(row=r, column=nib_col).fill = YELLOW_FILL
+                sertifikat_ws.cell(row=r, column=luas_col).fill = YELLOW_FILL
+
+                # Add description
+                _append_ket(sertifikat_ws, r, ket_col, "Data Ahli Waris")
+
+                # Increment counter
+                jumlah_ahli_waris += 1
+
+    # Add summary of processed data, duplicates, and heirs at the top of the SUMMARY column
+    summary_text = f"Data diproses: {total_processed}\nNIB duplikat: {duplicate_count}\nJumlah Ahli Waris: {jumlah_ahli_waris}"
     sertifikat_ws.cell(row=2, column=summ_col, value=summary_text)
 
     # Save the result
@@ -260,7 +292,8 @@ def process_certificate_analysis(
     return {
         'workbook_bytes': sertifikat_out.getvalue(),
         'data_diproses': total_processed,
-        'nib_duplikat': duplicate_count
+        'nib_duplikat': duplicate_count,
+        'jumlah_ahli_waris': jumlah_ahli_waris
     }
 
 
@@ -287,4 +320,5 @@ if __name__ == "__main__":
     print(f"Certificate analysis completed.")
     print(f"Data diproses: {result['data_diproses']}")
     print(f"NIB duplikat: {result['nib_duplikat']}")
+    print(f"Jumlah Ahli Waris: {result['jumlah_ahli_waris']}")
     print(f"Output saved to {output_file}")
